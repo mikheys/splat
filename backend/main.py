@@ -123,7 +123,7 @@ from core.options import Options
 import kiui
 
 try:
-    from gsplat import rasterize_to_pixels as _gsplat_rasterize
+    from gsplat import rasterization as _gsplat_rasterize
     HAS_GSPLAT = True
 except ImportError:
     _gsplat_rasterize = None
@@ -167,16 +167,21 @@ class GaussianRenderer:
 
                 if HAS_GSPLAT:
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D, rotations, scales, opacity.squeeze(-1), rgbs,
-                        view_matrix, K, W, H,
-                        backgrounds=bg.unsqueeze(0), scale_modifier=scale_modifier,
+                        means3D.unsqueeze(0), rotations.unsqueeze(0), scales.unsqueeze(0),
+                        opacity.squeeze(-1).unsqueeze(0), rgbs.unsqueeze(0),
+                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H,
+                        backgrounds=bg.unsqueeze(0),
                     )
                 else:
                     # fallback using module-level import
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D, rotations, scales, opacity.squeeze(-1), rgbs,
-                        view_matrix, K, W, H, backgrounds=bg.unsqueeze(0),
+                        means3D.unsqueeze(0), rotations.unsqueeze(0), scales.unsqueeze(0),
+                        opacity.squeeze(-1).unsqueeze(0), rgbs.unsqueeze(0),
+                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H,
+                        backgrounds=bg.unsqueeze(0),
                     )
+                render_colors = render_colors[0]  # [1, 3, H, W] -> [3, H, W]
+                render_alphas = render_alphas[0]  # [1, 1, H, W] -> [1, H, W]
 
                 rendered_image = render_colors.permute(2, 0, 1).clamp(0, 1)
                 rendered_alpha = render_alphas.permute(2, 0, 1)
