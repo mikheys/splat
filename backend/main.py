@@ -109,13 +109,13 @@ def patch_lgm_gsplat():
         logger.warning(f"LGM gs.py not found at {target}")
         return
     
-    # Check if already patched with correct API
+    # Check if already patched with correct API (v2 with _gsplat_rasterize)
     content = target.read_text()
-    if "rasterize_to_pixels" in content:
+    if "_gsplat_rasterize" in content:
         logger.info("→ LGM gs.py already patched for gsplat")
         return
     
-    logger.info("✓ Patching LGM gs.py for gsplat...")
+    logger.info("✓ Patching LGM gs.py for gsplat... (v2 _gsplat_rasterize)")
     # Write the patched version inline
     patched = '''import numpy as np
 
