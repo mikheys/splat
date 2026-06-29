@@ -394,33 +394,20 @@ class SplatEditor {
 
     gl.bindVertexArray(this.vao);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufPosition);
-    gl.bufferData(gl.ARRAY_BUFFER, this.positions, gl.DYNAMIC_DRAW);
-    gl.enableVertexAttribArray(this.attribs.aPosition);
-    gl.vertexAttribPointer(this.attribs.aPosition, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufColor);
-    gl.bufferData(gl.ARRAY_BUFFER, this.colors, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(this.attribs.aColor);
-    gl.vertexAttribPointer(this.attribs.aColor, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufOpacity);
-    gl.bufferData(gl.ARRAY_BUFFER, this.opacities, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(this.attribs.aOpacity);
-    gl.vertexAttribPointer(this.attribs.aOpacity, 1, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufScale);
-    gl.bufferData(gl.ARRAY_BUFFER, this.scales, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(this.attribs.aScale);
-    gl.vertexAttribPointer(this.attribs.aScale, 3, gl.FLOAT, false, 0, 0);
-
-    // Rotation may be optimized out by shader compiler
-    if (this.attribs.aRotation >= 0) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.bufRotation);
-      gl.bufferData(gl.ARRAY_BUFFER, this.rotations, gl.STATIC_DRAW);
-      gl.enableVertexAttribArray(this.attribs.aRotation);
-      gl.vertexAttribPointer(this.attribs.aRotation, 4, gl.FLOAT, false, 0, 0);
-    }
+    // Only enable attributes that weren't optimized out by the shader compiler
+    const setAttrib = (attrib, size, buffer, data) => {
+      if (attrib >= 0) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(attrib);
+        gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, 0, 0);
+      }
+    };
+    setAttrib(this.attribs.aPosition, 3, this.bufPosition, this.positions);
+    setAttrib(this.attribs.aColor, 3, this.bufColor, this.colors);
+    setAttrib(this.attribs.aOpacity, 1, this.bufOpacity, this.opacities);
+    setAttrib(this.attribs.aScale, 3, this.bufScale, this.scales);
+    setAttrib(this.attribs.aRotation, 4, this.bufRotation, this.rotations);
 
     gl.bindVertexArray(null);
   }
