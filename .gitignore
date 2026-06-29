@@ -1,0 +1,35 @@
+# ── Environment ────────────────────────────────
+.venv/
+venv/
+.env
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+
+# ── Data (downloaded weights, uploads, outputs) ─
+data/uploads/
+data/outputs/
+data/.cache/
+
+# ── Model weights (download via setup.sh) ──────
+data/ckpts/*.safetensors
+data/ckpts/*.pth
+data/ckpts/*.ckpt
+data/ckpts/*.bin
+
+# ── Cloned repos (user runs git clone) ─────────
+backend/instantmesh/
+backend/lgm/
+
+# ── IDE / OS ──────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────
+*.log

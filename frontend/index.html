@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Viewer — Image to 3D</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <h1><span class="accent">3D</span> Viewer</h1>
+      <div class="subtitle">Преврати фото в 3D — InstantMesh или Gaussian Splats</div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="split-view">
+      <!-- Left Panel: Controls -->
+      <aside class="left-panel">
+        <!-- Upload Area -->
+        <div class="card upload-card" id="uploadZone">
+          <div class="upload-content" id="uploadContent">
+            <div class="upload-icon">📸</div>
+            <p class="upload-text">Перетащи фото сюда<br>или <strong>выбери файл</strong></p>
+            <p class="upload-hint">PNG, JPG, WEBP</p>
+          </div>
+          <div class="upload-preview" id="uploadPreview" style="display:none">
+            <img id="previewImage" alt="Preview">
+            <button class="btn-icon" id="changeImageBtn" title="Заменить">🔄</button>
+          </div>
+          <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+        </div>
+
+        <!-- Engine Selection -->
+        <div class="card">
+          <label class="card-title">Движок генерации</label>
+          <div class="engine-grid">
+            <label class="engine-option" id="opt-mesh" data-engine="instantmesh">
+              <input type="radio" name="engine" value="instantmesh" checked>
+              <div class="engine-info">
+                <span class="engine-name">InstantMesh</span>
+                <span class="engine-desc">Текстурированный 3D Mesh</span>
+                <span class="engine-format">GLB / OBJ</span>
+              </div>
+              <div class="engine-icon">🎯</div>
+            </label>
+            <label class="engine-option" id="opt-splats" data-engine="lgm">
+              <input type="radio" name="engine" value="lgm">
+              <div class="engine-info">
+                <span class="engine-name">LGM — Gaussian Splats</span>
+                <span class="engine-desc">3D Gaussian Splatting</span>
+                <span class="engine-format">PLY + видео</span>
+              </div>
+              <div class="engine-icon">✨</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Generate Button -->
+        <button class="btn-generate" id="generateBtn" disabled>
+          <span class="btn-text">🚀 Сгенерировать 3D</span>
+          <span class="btn-loader" style="display:none"></span>
+        </button>
+
+        <!-- Progress -->
+        <div class="card progress-card" id="progressCard" style="display:none">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-status" id="progressStatus">Загрузка модели...</div>
+        </div>
+
+        <!-- Result Actions -->
+        <div class="card actions-card" id="actionsCard" style="display:none">
+          <div class="result-badge" id="resultBadge">✅ Готово!</div>
+          <div class="action-buttons">
+            <a class="btn-download" id="downloadBtn" download>💾 Скачать</a>
+            <button class="btn-secondary" id="newBtn">🔄 Новое фото</button>
+          </div>
+          <div class="result-files" id="resultFiles"></div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: 3D Viewer -->
+      <main class="viewer-panel">
+        <div class="viewer-placeholder" id="viewerPlaceholder">
+          <div class="placeholder-content">
+            <div class="placeholder-icon">🎨</div>
+            <p>Загрузи фото и нажми «Сгенерировать»</p>
+          </div>
+        </div>
+        <div id="threeContainer" style="display:none"></div>
+        <div id="splatContainer" style="display:none"></div>
+        <div class="viewer-controls" id="viewerControls" style="display:none">
+          <span class="control-hint">🖱 Мышь — вращать · Колесо — зум · ПКМ — панорама</span>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+  <script src="/static/js/viewer_mesh.js"></script>
+  <script src="/static/js/viewer_splats.js"></script>
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
