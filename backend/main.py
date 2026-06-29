@@ -247,41 +247,52 @@ class GaussianRenderer:
     logger.info("✓ Patched LGM gs.py for gsplat")
 
 def patch_lgm_xformers():
-    """Make xformers optional in mv_unet.py. Falls back to PyTorch SDPA."""
+    """Make xformers optional in mv_unet.py + hub cache copy."""
+    # Patch local copy
     target = LGM_REPO / "mvdream" / "mv_unet.py"
-    if not target.exists():
-        logger.warning(f"mv_unet.py not found")
-        return
+    if target.exists():
+        _patch_mv_unet_file(target)
     
+    # Patch hub cache copy (used by diffusers with trust_remote_code)
+    import glob
+    hub_pattern = os.path.expanduser("~/.cache/huggingface/modules/diffusers_modules/local/mv_unet.py")
+    for cached in glob.glob(hub_pattern.replace("mv_unet.py", "*mv_unet*")):
+        p = Path(cached)
+        if p.is_file() and "HAS_XFORMERS" not in p.read_text():
+            _patch_mv_unet_file(p)
+            logger.info(f"✓ Patched hub cache: {p}")
+
+
+def _patch_mv_unet_file(target: Path):
+    """Apply xformers-free patch to a single mv_unet.py file."""
     content = target.read_text()
-    
-    # Check if already patched
     if "HAS_XFORMERS" in content:
-        logger.info("→ mv_unet.py already patched for xformers")
+        logger.info(f"→ Already patched: {target.name}")
         return
     
-    # 1. Replace the import
     old_import = "# require xformers!\nimport xformers\nimport xformers.ops"
-    new_import = '''# xformers (optional)
-try:
-    import xformers
-    import xformers.ops
-    HAS_XFORMERS = True
-except ImportError:
-    HAS_XFORMERS = False'''
+    new_import = (
+        "# xformers (optional)\n"
+        "try:\n"
+        "    import xformers\n"
+        "    import xformers.ops\n"
+        "    HAS_XFORMERS = True\n"
+        "except ImportError:\n"
+        "    HAS_XFORMERS = False"
+    )
     content = content.replace(old_import, new_import)
     
-    # 2. Replace xformers attention calls with fallback
-    old_attn = '''out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )'''
-    new_attn = '''if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)'''
+    # Replace attention calls
+    old_attn = "out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )"
+    new_attn = "if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)"
     content = content.replace(old_attn, new_attn)
     
-    old_attn2 = '''out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )'''
-    new_attn2 = '''if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)'''
+    old_attn2 = "out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )"
+    new_attn2 = "if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)"
     content = content.replace(old_attn2, new_attn2)
     
     target.write_text(content)
-    logger.info("✓ Patched mv_unet.py: xformers is now optional")
+    logger.info(f"✓ Patched: {target.name}")
 
 def ensure_lgm_weights() -> Path:
     """Скачать/найти веса для LGM. Сначала смотрит в data/ckpts/."""
@@ -371,6 +382,36 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     """Запустить LGM через subprocess."""
     python = find_python()
     weights = ensure_lgm_weights()
+    
+    # Pre-create patched mv_unet.py in hub cache (before from_pretrained loads it)
+    hub_dir = Path(os.path.expanduser("~/.cache/huggingface/modules/diffusers_modules/local"))
+    hub_dir.mkdir(parents=True, exist_ok=True)
+    hub_target = hub_dir / "mv_unet.py"
+    if hub_target.exists():
+        if "HAS_XFORMERS" not in hub_target.read_text():
+            _patch_mv_unet_file(hub_target)
+    else:
+        # Copy our patched version to hub cache
+        src = LGM_REPO / "mvdream" / "mv_unet.py"
+        if src.exists():
+            content = src.read_text()
+            # If not yet patched locally, apply patch now
+            if "HAS_XFORMERS" not in content:
+                # Apply patch to content string
+                content = content.replace(
+                    "# require xformers!\nimport xformers\nimport xformers.ops",
+                    "# xformers (optional)\ntry:\n    import xformers\n    import xformers.ops\n    HAS_XFORMERS = True\nexcept ImportError:\n    HAS_XFORMERS = False"
+                )
+                content = content.replace(
+                    "out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )",
+                    "if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)"
+                )
+                content = content.replace(
+                    "out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )",
+                    "if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)"
+                )
+            hub_target.write_text(content)
+            logger.info(f"✓ Pre-created patched hub cache: {hub_target}")
     
     cmd = [
         python, str(LGM_REPO / "infer.py"),
