@@ -70,6 +70,33 @@ def ensure_im_weights() -> tuple[Path, Path]:
     return ckpt, unet
 
 
+def patch_instantmesh_nvdiffrast():
+    """
+    Патч mesh_util.py: делаем импорт nvdiffrast опциональным.
+    Он нужен только для --export_texmap, который мы не используем.
+    """
+    target = IM_REPO / "src" / "utils" / "mesh_util.py"
+    if not target.exists():
+        logger.warning(f"mesh_util.py not found at {target}")
+        return
+    
+    content = target.read_text()
+    old_import = "import nvdiffrast.torch as dr"
+    new_import = (
+        "try:\n"
+        "    import nvdiffrast.torch as dr\n"
+        "except ImportError:\n"
+        "    dr = None"
+    )
+    
+    if old_import in content:
+        content = content.replace(old_import, new_import)
+        target.write_text(content)
+        logger.info("✓ Patched mesh_util.py: nvdiffrast import is now optional")
+    else:
+        logger.info("→ mesh_util.py already patched")
+
+
 def ensure_lgm_weights() -> Path:
     """Скачать/найти веса для LGM. Сначала смотрит в data/ckpts/."""
     local = CKPTS / "model_fp16.safetensors"
@@ -200,6 +227,9 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
 app = FastAPI(title="3D Viewer")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+
+# Patch InstantMesh for missing nvdiffrast
+patch_instantmesh_nvdiffrast()
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND)), name="frontend")
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS)), name="outputs")
