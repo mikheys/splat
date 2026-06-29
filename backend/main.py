@@ -109,9 +109,9 @@ def patch_lgm_gsplat():
         logger.warning(f"LGM gs.py not found at {target}")
         return
     
-    # Check if already patched
+    # Check if already patched with correct API
     content = target.read_text()
-    if "gsplat" in content and "diff_gaussian_rasterization" not in content:
+    if "rasterize_to_pixels" in content:
         logger.info("→ LGM gs.py already patched for gsplat")
         return
     
