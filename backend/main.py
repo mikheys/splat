@@ -394,8 +394,14 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     python = find_python()
     weights = ensure_lgm_weights()
     
-    # Patch hub snapshot mv_unet.py (where from_pretrained loads it from)
+    # Patch hub snapshot + clear pyc cache
     import glob as _glob
+    for cache_dir in [LGM_REPO / "core" / "__pycache__", LGM_REPO / "__pycache__"]:
+        if cache_dir.exists():
+            import shutil
+            shutil.rmtree(cache_dir)
+            logger.info(f"✓ Cleared pycache: {cache_dir}")
+    
     for _f in _glob.glob(os.path.expanduser(
         "~/.cache/huggingface/hub/models--ashawkey--imagedream-ipmv-diffusers/"
         "snapshots/*/unet/mv_unet.py"
