@@ -365,8 +365,13 @@ class SplatEditor {
           view[i+7] === 0x64 &&  // 'd'
           view[i+8] === 0x65 &&  // 'e'
           view[i+9] === 0x72) {  // 'r'
-        // end_header\n = +11
-        return i + 11;
+        // end_header followed by \n or \r\n
+        let eoh = i + 10; // position after 'end_header'
+        // skip \r if present (Windows)
+        if (eoh < buffer.byteLength && view[eoh] === 0x0d) eoh++;
+        // skip \n
+        if (eoh < buffer.byteLength && view[eoh] === 0x0a) eoh++;
+        return eoh;
       }
     }
     throw new Error('No end_header found');
