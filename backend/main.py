@@ -97,6 +97,153 @@ def patch_instantmesh_nvdiffrast():
         logger.info("→ mesh_util.py already patched")
 
 
+def patch_lgm_gsplat():
+    """
+    Патч LGM core/gs.py: заменяет diff_gaussian_rasterization на gsplat.
+    gsplat имеет готовые wheels под Windows.
+    """
+    target = LGM_REPO / "core" / "gs.py"
+    if not target.exists():
+        logger.warning(f"LGM gs.py not found at {target}")
+        return
+    
+    # Check if already patched
+    content = target.read_text()
+    if "gsplat" in content and "diff_gaussian_rasterization" not in content:
+        logger.info("→ LGM gs.py already patched for gsplat")
+        return
+    
+    logger.info("✓ Patching LGM gs.py for gsplat...")
+    # Write the patched version inline
+    patched = '''import numpy as np
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from core.options import Options
+
+import kiui
+
+try:
+    from gsplat import rasterize_gaussians
+    HAS_GSPLAT = True
+except ImportError:
+    HAS_GSPLAT = False
+
+
+class GaussianRenderer:
+    def __init__(self, opt: Options):
+        
+        self.opt = opt
+        self.bg_color = torch.tensor([1, 1, 1], dtype=torch.float32, device="cuda")
+        
+        # gsplat uses intrinsics matrix K
+        self.tan_half_fov = np.tan(0.5 * np.deg2rad(self.opt.fovy))
+        self.focal = self.opt.output_size / (2 * self.tan_half_fov)
+        
+    def render(self, gaussians, cam_view, cam_view_proj, cam_pos, bg_color=None, scale_modifier=1):
+        device = gaussians.device
+        B, V = cam_view.shape[:2]
+        H = W = self.opt.output_size
+
+        K = torch.tensor([
+            [self.focal, 0, W / 2],
+            [0, self.focal, H / 2],
+            [0, 0, 1],
+        ], dtype=torch.float32, device=device)
+
+        images = []
+        alphas = []
+        
+        for b in range(B):
+            means3D = gaussians[b, :, 0:3].contiguous().float()
+            opacity = gaussians[b, :, 3:4].contiguous().float()
+            scales = gaussians[b, :, 4:7].contiguous().float()
+            rotations = gaussians[b, :, 7:11].contiguous().float()
+            rgbs = gaussians[b, :, 11:].contiguous().float()
+
+            for v in range(V):
+                view_matrix = cam_view[b, v].float()
+                bg = self.bg_color if bg_color is None else bg_color
+
+                if HAS_GSPLAT:
+                    render_colors, render_alphas, _ = rasterize_gaussians(
+                        means3D, rotations, scales, opacity.squeeze(-1), rgbs,
+                        view_matrix, K, W, H,
+                        bg_color=bg, scale_modifier=scale_modifier,
+                    )
+                else:
+                    # fallback: try old gsplat.rasterize
+                    import gsplat
+                    render_colors, render_alphas, _ = gsplat.rasterize(
+                        means3D.unsqueeze(0), rotations.unsqueeze(0), scales.unsqueeze(0),
+                        opacity.squeeze(-1).unsqueeze(0), rgbs.unsqueeze(0),
+                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H, bg_color=bg,
+                    )
+                    render_colors, render_alphas = render_colors[0], render_alphas[0]
+
+                rendered_image = render_colors.permute(2, 0, 1).clamp(0, 1)
+                rendered_alpha = render_alphas.permute(2, 0, 1)
+                images.append(rendered_image)
+                alphas.append(rendered_alpha)
+
+        images = torch.stack(images, dim=0).view(B, V, 3, H, W)
+        alphas = torch.stack(alphas, dim=0).view(B, V, 1, H, W)
+        return {"image": images, "alpha": alphas}
+
+    def save_ply(self, gaussians, path, compatible=True):
+        assert gaussians.shape[0] == 1
+        from plyfile import PlyData, PlyElement
+        means3D = gaussians[0, :, 0:3].contiguous().float()
+        opacity = gaussians[0, :, 3:4].contiguous().float()
+        scales = gaussians[0, :, 4:7].contiguous().float()
+        rotations = gaussians[0, :, 7:11].contiguous().float()
+        shs = gaussians[0, :, 11:].unsqueeze(1).contiguous().float()
+        mask = opacity.squeeze(-1) >= 0.005
+        means3D, opacity, scales, rotations, shs = [x[mask] for x in (means3D, opacity, scales, rotations, shs)]
+        if compatible:
+            opacity = kiui.op.inverse_sigmoid(opacity)
+            scales = torch.log(scales + 1e-8)
+            shs = (shs - 0.5) / 0.28209479177387814
+        xyzs = means3D.detach().cpu().numpy()
+        f_dc = shs.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
+        opacities = opacity.detach().cpu().numpy()
+        scales = scales.detach().cpu().numpy()
+        rotations = rotations.detach().cpu().numpy()
+        l = ['x', 'y', 'z'] + ['f_dc_{}'.format(i) for i in range(f_dc.shape[1])] + ['opacity'] + ['scale_{}'.format(i) for i in range(scales.shape[1])] + ['rot_{}'.format(i) for i in range(rotations.shape[1])]
+        dtype_full = [(a, 'f4') for a in l]
+        elements = np.empty(xyzs.shape[0], dtype=dtype_full)
+        attributes = np.concatenate((xyzs, f_dc, opacities, scales, rotations), axis=1)
+        elements[:] = list(map(tuple, attributes))
+        PlyData([PlyElement.describe(elements, 'vertex')]).write(path)
+    
+    def load_ply(self, path, compatible=True):
+        from plyfile import PlyData, PlyElement
+        plydata = PlyData.read(path)
+        xyz = np.stack([np.asarray(plydata.elements[0][a]) for a in ['x','y','z']], axis=1)
+        opacities = np.asarray(plydata.elements[0]['opacity'])[..., np.newaxis]
+        shs = np.zeros((xyz.shape[0], 3))
+        for i in range(3):
+            shs[:, i] = np.asarray(plydata.elements[0][f'f_dc_{i}'])
+        scale_names = [p.name for p in plydata.elements[0].properties if p.name.startswith('scale_')]
+        scales = np.zeros((xyz.shape[0], len(scale_names)))
+        for idx, n in enumerate(scale_names):
+            scales[:, idx] = np.asarray(plydata.elements[0][n])
+        rot_names = [p.name for p in plydata.elements[0].properties if p.name.startswith('rot_')]
+        rots = np.zeros((xyz.shape[0], len(rot_names)))
+        for idx, n in enumerate(rot_names):
+            rots[:, idx] = np.asarray(plydata.elements[0][n])
+        gaussians = torch.from_numpy(np.concatenate([xyz, opacities, scales, rots, shs], axis=1)).float()
+        if compatible:
+            gaussians[..., 3:4] = torch.sigmoid(gaussians[..., 3:4])
+            gaussians[..., 4:7] = torch.exp(gaussians[..., 4:7])
+            gaussians[..., 11:] = 0.28209479177387814 * gaussians[..., 11:] + 0.5
+        return gaussians
+'''
+    target.write_text(patched)
+    logger.info("✓ Patched LGM gs.py for gsplat")
+
 def ensure_lgm_weights() -> Path:
     """Скачать/найти веса для LGM. Сначала смотрит в data/ckpts/."""
     local = CKPTS / "model_fp16.safetensors"
@@ -228,8 +375,9 @@ app = FastAPI(title="3D Viewer")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
-# Patch InstantMesh for missing nvdiffrast
+# Patch models for missing CUDA libs
 patch_instantmesh_nvdiffrast()
+patch_lgm_gsplat()
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND)), name="frontend")
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS)), name="outputs")
