@@ -28,22 +28,19 @@ echo.
 
 REM ── Проверка Visual C++ ────────────────────
 echo [2/4] Проверка Visual Studio Build Tools...
-cl.exe /? >nul 2>&1
-if %errorlevel% neq 0 (
-    echo   ⚠️ C++ компилятор не найден (cl.exe)
-    echo.
-    echo   Нужен Visual Studio Build Tools — https://visualstudio.microsoft.com/visual-cpp-build-tools/
-    echo   Установи компонент "Desktop development with C++" и перезапусти скрипт.
-    echo.
-) else (
+where cl.exe 2>nul >nul
+if %errorlevel% equ 0 (
     echo   ✓ C++ компилятор найден
+) else (
+    echo   ⚠️ VS компилятор не найден. Нужен "Desktop development with C++"
+    echo   https://visualstudio.microsoft.com/visual-cpp-build-tools/
 )
 echo.
 
 REM ── Установка nvdiffrast ───────────────────
 echo [3/4] Установка nvdiffrast...
-echo   pip install git+https://github.com/NVlabs/nvdiffrast/
-pip install git+https://github.com/NVlabs/nvdiffrast/ 2>&1
+echo   pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast/
+pip install --no-build-isolation git+https://github.com/NVlabs/nvdiffrast/ 2>&1
 if %errorlevel% neq 0 (
     echo   ❌ Ошибка! nvdiffrast не установился
     echo.
@@ -60,8 +57,8 @@ echo.
 
 REM ── Установка diff-gaussian-rasterization ──
 echo [4/4] Установка diff-gaussian-rasterization...
-echo   pip install git+https://github.com/ashawkey/diff-gaussian-rasterization/
-pip install git+https://github.com/ashawkey/diff-gaussian-rasterization/ 2>&1
+echo   pip install --no-build-isolation git+https://github.com/ashawkey/diff-gaussian-rasterization/
+pip install --no-build-isolation git+https://github.com/ashawkey/diff-gaussian-rasterization/ 2>&1
 if %errorlevel% neq 0 (
     echo   ❌ Ошибка! diff-gaussian-rasterization не установился
     echo.
@@ -72,14 +69,11 @@ echo.
 
 REM ── Итог ───────────────────────────────────
 echo ──────────────────────────────────────────────────────────────
-python -c "
-try:
-    import nvdiffrast.torch; print('✓ nvdiffrast OK')
-except: print('✗ nvdiffrast FAIL')
-try:
-    from diff_gaussian_rasterization import GaussianRasterizationSettings; print('✓ diff-gaussian-rasterization OK')
-except: print('✗ diff-gaussian-rasterization FAIL')
-" 2>&1
+python -c "import nvdiffrast.torch" 2>nul
+if %errorlevel% equ 0 (echo   [OK] nvdiffrast) else (echo   [FAIL] nvdiffrast)
+
+python -c "from diff_gaussian_rasterization import GaussianRasterizationSettings" 2>nul
+if %errorlevel% equ 0 (echo   [OK] diff-gaussian-rasterization) else (echo   [FAIL] diff-gaussian-rasterization)
 
 echo.
 echo Если есть FAIL — нужен Visual Studio Build Tools:
