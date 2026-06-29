@@ -243,6 +243,7 @@ class SplatEditor {
     const decoder = new TextDecoder('ascii');
     const headerEnd = this._findHeaderEnd(buffer);
     const header = decoder.decode(new Uint8Array(buffer, 0, headerEnd));
+    console.log('PLY header:', header.substring(0, 200));
 
     // Parse vertex count
     const vertMatch = header.match(/element vertex\s+(\d+)/i);
