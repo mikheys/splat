@@ -258,8 +258,10 @@
     // Setup download button
     const downloadUrl = result.glb || result.obj || result.ply;
     if (downloadUrl) {
-      dom.downloadBtn.href = downloadUrl;
-      dom.downloadBtn.download = downloadUrl.split('/').pop();
+      // Convert local path to web URL
+      const webPath = downloadUrl.replace(/^.*?data[\\\/]outputs[\\\/]/, '/outputs/');
+      dom.downloadBtn.href = webPath;
+      dom.downloadBtn.download = downloadUrl.split(/[\\\/]/).pop();
       dom.downloadBtn.style.display = '';
     } else {
       dom.downloadBtn.style.display = 'none';
@@ -285,13 +287,20 @@
   function showInViewer(result) {
     dom.viewerPlaceholder.style.display = 'none';
 
+    // Convert local path to web URL for loading in viewer
+    const toWebUrl = (path) => {
+      if (!path) return null;
+      if (path.startsWith('/outputs/') || path.startsWith('http')) return path;
+      return path.replace(/^.*?data[\\\/]outputs[\\\/]/, '/outputs/');
+    };
+
     if (state.engine === 'instantmesh' && (result.glb || result.obj)) {
       // Show mesh viewer
       dom.threeContainer.style.display = 'block';
       dom.splatContainer.style.display = 'none';
 
       const format = result.glb ? 'glb' : 'obj';
-      const url = result.glb || result.obj;
+      const url = toWebUrl(result.glb || result.obj);
       meshViewer.loadMesh(url, format);
 
     } else if (state.engine === 'lgm' && result.ply) {
@@ -299,7 +308,9 @@
       dom.threeContainer.style.display = 'none';
       dom.splatContainer.style.display = 'block';
 
-      splatEditor.loadPLY(result.ply);
+      const url = toWebUrl(result.ply);
+      console.log('Loading PLY from:', url);
+      splatEditor.loadPLY(url);
 
     } else {
       // No viewable result — show fallback
