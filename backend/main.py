@@ -437,12 +437,9 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     )
     
     if proc.returncode != 0:
-        logger.error(f"LGM stderr:\n{proc.stderr}")
-        # Если вернул вывод, но ошибка — некоторые версии LGM падают после сохранения
-        if "CUDA" in (proc.stderr or "") or "out of memory" in (proc.stderr or "").lower():
-            raise RuntimeError(f"LGM failed: {proc.stderr[-500:]}")
-        logger.warning(f"LGM exit={proc.returncode}, checking output anyway...")
+        logger.warning(f"LGM exit={proc.returncode}")
     
+    # Always check for .ply — LGM may fail on render but still save the file
     results = {"ply": None, "video": None}
     
     out = Path(output_dir)
@@ -452,6 +449,11 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     for f in out.rglob("*.mp4"):
         results["video"] = str(f)
         break
+    
+    if proc.returncode != 0:
+        if results["ply"] is None:
+            raise RuntimeError(f"LGM failed: {proc.stderr[-500:]}")
+        logger.warning(f"LGM render failed but .ply saved: {results['ply']}")
     
     logger.info(f"✓ LGM done: {results}")
     return results
