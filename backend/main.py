@@ -128,7 +128,7 @@ from core.options import Options
 import kiui
 
 try:
-    from gsplat import rasterize_gaussians
+    from gsplat import rasterize_to_pixels
     HAS_GSPLAT = True
 except ImportError:
     HAS_GSPLAT = False
@@ -170,20 +170,18 @@ class GaussianRenderer:
                 bg = self.bg_color if bg_color is None else bg_color
 
                 if HAS_GSPLAT:
-                    render_colors, render_alphas, _ = rasterize_gaussians(
+                    render_colors, render_alphas, _ = rasterize_to_pixels(
                         means3D, rotations, scales, opacity.squeeze(-1), rgbs,
                         view_matrix, K, W, H,
                         bg_color=bg, scale_modifier=scale_modifier,
                     )
                 else:
-                    # fallback: try old gsplat.rasterize
-                    import gsplat
-                    render_colors, render_alphas, _ = gsplat.rasterize(
-                        means3D.unsqueeze(0), rotations.unsqueeze(0), scales.unsqueeze(0),
-                        opacity.squeeze(-1).unsqueeze(0), rgbs.unsqueeze(0),
-                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H, bg_color=bg,
+                    # fallback
+                    from gsplat import rasterize_to_pixels
+                    render_colors, render_alphas, _ = rasterize_to_pixels(
+                        means3D, rotations, scales, opacity.squeeze(-1), rgbs,
+                        view_matrix, K, W, H, bg_color=bg,
                     )
-                    render_colors, render_alphas = render_colors[0], render_alphas[0]
 
                 rendered_image = render_colors.permute(2, 0, 1).clamp(0, 1)
                 rendered_alpha = render_alphas.permute(2, 0, 1)
