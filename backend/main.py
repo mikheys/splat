@@ -167,28 +167,20 @@ class GaussianRenderer:
 
                 if HAS_GSPLAT:
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D.unsqueeze(0), 
-                        rotations.unsqueeze(0), 
-                        scales.unsqueeze(0),
-                        opacity.squeeze(-1).unsqueeze(0), 
-                        rgbs.unsqueeze(0),
-                        view_matrix.unsqueeze(0).unsqueeze(0), 
-                        K.unsqueeze(0).unsqueeze(0), W, H,
-                        backgrounds=bg.unsqueeze(0).unsqueeze(0),
+                        means3D, rotations, scales,
+                        opacity.squeeze(-1), rgbs,
+                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H,
+                        backgrounds=bg.unsqueeze(0),
                     )
                 else:
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D.unsqueeze(0), 
-                        rotations.unsqueeze(0), 
-                        scales.unsqueeze(0),
-                        opacity.squeeze(-1).unsqueeze(0), 
-                        rgbs.unsqueeze(0),
-                        view_matrix.unsqueeze(0).unsqueeze(0), 
-                        K.unsqueeze(0).unsqueeze(0), W, H,
-                        backgrounds=bg.unsqueeze(0).unsqueeze(0),
+                        means3D, rotations, scales,
+                        opacity.squeeze(-1), rgbs,
+                        view_matrix.unsqueeze(0), K.unsqueeze(0), W, H,
+                        backgrounds=bg.unsqueeze(0),
                     )
-                render_colors = render_colors[0, 0]  # [B,C,H,W,3] -> [H,W,3]
-                render_alphas = render_alphas[0, 0]  # [B,C,H,W,1] -> [H,W,1]
+                render_colors = render_colors[0]  # [C,H,W,3] -> [H,W,3]
+                render_alphas = render_alphas[0]  # [C,H,W,1] -> [H,W,1]
 
                 rendered_image = render_colors.permute(2, 0, 1).clamp(0, 1)
                 rendered_alpha = render_alphas.permute(2, 0, 1)
