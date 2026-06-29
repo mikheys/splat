@@ -247,36 +247,17 @@ class GaussianRenderer:
     logger.info("✓ Patched LGM gs.py for gsplat")
 
 def patch_lgm_infer():
-    """Patch infer.py to fix hub cache mv_unet.py before from_pretrained."""
+    """Set trust_remote_code=False in infer.py (local unet class already imported)."""
     target = LGM_REPO / "infer.py"
     if not target.exists():
         return
     content = target.read_text()
-    if "Patch hub cache for xformers-free" in content:
-        logger.info("→ infer.py already patched")
+    if "trust_remote_code=False" in content:
+        logger.info("→ infer.py already patched (trust_remote_code=False)")
         return
-    
-    insert = '''# Patch hub cache for xformers-free mv_unet.py before loading
-import os, pathlib
-_hub_base = pathlib.Path(os.path.expanduser("~/.cache/huggingface/modules/diffusers_modules"))
-for _p in _hub_base.rglob("mv_unet.py"):
-    _c = _p.read_text()
-    if "HAS_XFORMERS" not in _c:
-        _c = _c.replace("# require xformers!\\nimport xformers\\nimport xformers.ops",
-            "# xformers (optional)\\ntry:\\n    import xformers\\n    import xformers.ops\\n    HAS_XFORMERS = True\\nexcept ImportError:\\n    HAS_XFORMERS = False")
-        _c = _c.replace("out = xformers.ops.memory_efficient_attention(\\n            q, k, v, attn_bias=None, op=self.attention_op\\n        )",
-            "if HAS_XFORMERS:\\n            out = xformers.ops.memory_efficient_attention(\\n                q, k, v, attn_bias=None, op=self.attention_op\\n            )\\n        else:\\n            out = F.scaled_dot_product_attention(q, k, v)\\n            out = out.reshape(b * self.heads, -1, self.dim_head)")
-        _c = _c.replace("out_ip = xformers.ops.memory_efficient_attention(\\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\\n            )",
-            "if HAS_XFORMERS:\\n                out_ip = xformers.ops.memory_efficient_attention(\\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\\n                )\\n            else:\\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)")
-        _p.write_text(_c)
-        print(f"[INFO] Patched hub cache: {_p}")
-
-'''
-    
-    marker = "# load image dream\npipe = MVDreamPipeline.from_pretrained("
-    content = content.replace(marker, insert + marker)
+    content = content.replace("trust_remote_code=True", "trust_remote_code=False")
     target.write_text(content)
-    logger.info("✓ Patched infer.py: hub cache fix before from_pretrained")
+    logger.info("✓ Patched infer.py: trust_remote_code=False")
 
 def patch_lgm_xformers():
     """Make xformers optional in mv_unet.py + hub cache copy."""
