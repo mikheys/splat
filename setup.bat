@@ -60,14 +60,19 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 
 REM InstantMesh
 if exist "backend\instantmesh\requirements.txt" (
+    echo   Установка pytorch-lightning...
+    pip install pytorch-lightning==2.1.2
+    echo   Установка остальных зависимостей InstantMesh...
+    pip install -q huggingface-hub einops omegaconf torchmetrics trimesh rembg diffusers imageio[ffmpeg] xatlas plyfile 2>nul
     pip install -q -r backend\instantmesh\requirements.txt 2>nul
 )
 
 REM LGM
 if exist "backend\lgm\requirements.txt" (
+    echo   Установка зависимостей LGM...
+    pip install -q tyro kiui xatlas roma trimesh plyfile imageio-ffmpeg safetensors 2>nul
     pip install -q -r backend\lgm\requirements.txt 2>nul
 )
-pip install -q kiui xatlas roma 2>nul
 
 REM ── 6. Скачивание весов моделей (если нет) ──
 echo [6/6] Проверка весов моделей...
