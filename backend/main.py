@@ -374,7 +374,7 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     
     cmd = [
         python, str(LGM_REPO / "infer.py"),
-        "lrm",
+        "big",
         "--test_path", image_path,
         "--workspace", output_dir,
         "--resume", str(weights),
