@@ -416,10 +416,13 @@ class SplatEditor {
     gl.enableVertexAttribArray(this.attribs.aScale);
     gl.vertexAttribPointer(this.attribs.aScale, 3, gl.FLOAT, false, 0, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufRotation);
-    gl.bufferData(gl.ARRAY_BUFFER, this.rotations, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(this.attribs.aRotation);
-    gl.vertexAttribPointer(this.attribs.aRotation, 4, gl.FLOAT, false, 0, 0);
+    // Rotation may be optimized out by shader compiler
+    if (this.attribs.aRotation >= 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.bufRotation);
+      gl.bufferData(gl.ARRAY_BUFFER, this.rotations, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(this.attribs.aRotation);
+      gl.vertexAttribPointer(this.attribs.aRotation, 4, gl.FLOAT, false, 0, 0);
+    }
 
     gl.bindVertexArray(null);
   }
