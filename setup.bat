@@ -58,14 +58,27 @@ echo   ⏳ Это может занять несколько минут...
 REM PyTorch с CUDA
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126 2>nul
 
+REM nvdiffrast (нужен для обоих движков)
+echo   Установка nvdiffrast...
+pip install git+https://github.com/NVlabs/nvdiffrast/ 2>nul
+if %errorlevel% neq 0 (
+    echo   ⚠️ nvdiffrast не собрался. Нужен Visual Studio Build Tools + CUDA Toolkit
+    echo   Скачать: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    echo   Установи "Desktop development with C++" и запусти setup.bat снова
+)
+
 REM InstantMesh
 if exist "backend\instantmesh\requirements.txt" (
     echo   Установка pytorch-lightning...
-    pip install pytorch-lightning==2.1.2
+    pip install pytorch-lightning==2.1.2 >nul
     echo   Установка остальных зависимостей InstantMesh...
     pip install -q huggingface-hub einops omegaconf torchmetrics trimesh rembg diffusers imageio[ffmpeg] xatlas plyfile 2>nul
     pip install -q -r backend\instantmesh\requirements.txt 2>nul
 )
+
+REM LGM — diff_gaussian_rasterization
+echo   Установка diff-gaussian-rasterization...
+pip install git+https://github.com/ashawkey/diff-gaussian-rasterization/ 2>nul
 
 REM LGM
 if exist "backend\lgm\requirements.txt" (

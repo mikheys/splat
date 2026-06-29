@@ -260,6 +260,9 @@
     if (downloadUrl) {
       dom.downloadBtn.href = downloadUrl;
       dom.downloadBtn.download = downloadUrl.split('/').pop();
+      dom.downloadBtn.style.display = '';
+    } else {
+      dom.downloadBtn.style.display = 'none';
     }
 
     // Show in 3D viewer
@@ -299,11 +302,19 @@
       splatEditor.loadPLY(result.ply);
 
     } else {
-      // Fallback
+      // No viewable result — show fallback
       dom.threeContainer.style.display = 'none';
       dom.splatContainer.style.display = 'none';
       dom.viewerPlaceholder.style.display = 'flex';
-      dom.viewerPlaceholder.querySelector('p').textContent = '3D файл сгенерирован, но не может быть показан в браузере. Используй кнопку "Скачать".';
+      
+      const hasAnyFile = result.glb || result.obj || result.ply;
+      if (hasAnyFile) {
+        dom.viewerPlaceholder.querySelector('p').textContent = 'Файл сгенерирован, но не может быть показан в браузере. Используй кнопку "Скачать".';
+      } else {
+        dom.viewerPlaceholder.querySelector('p').textContent = '❌ Генерация не удалась. Проверь логи сервера.';
+        dom.resultBadge.textContent = '❌ Ошибка генерации';
+        dom.resultBadge.style.color = '#ff6b6b';
+      }
     }
   }
 
