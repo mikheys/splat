@@ -247,17 +247,17 @@ class GaussianRenderer:
     logger.info("✓ Patched LGM gs.py for gsplat")
 
 def patch_lgm_infer():
-    """Set trust_remote_code=False in infer.py (local unet class already imported)."""
+    """Revert trust_remote_code=True in infer.py (snapshot patching handles it)."""
     target = LGM_REPO / "infer.py"
     if not target.exists():
         return
     content = target.read_text()
-    if "trust_remote_code=False" in content:
-        logger.info("→ infer.py already patched (trust_remote_code=False)")
+    if "trust_remote_code=False" not in content:
+        logger.info("→ infer.py already has trust_remote_code=True")
         return
-    content = content.replace("trust_remote_code=True", "trust_remote_code=False")
+    content = content.replace("trust_remote_code=False", "trust_remote_code=True")
     target.write_text(content)
-    logger.info("✓ Patched infer.py: trust_remote_code=False")
+    logger.info("✓ Reverted infer.py: trust_remote_code=True (snapshot patched instead)")
 
 def patch_lgm_xformers():
     """Make xformers optional in mv_unet.py + hub cache copy."""
@@ -396,35 +396,26 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     python = find_python()
     weights = ensure_lgm_weights()
     
-    # Pre-create patched mv_unet.py in hub cache (before from_pretrained loads it)
-    hub_dir = Path(os.path.expanduser("~/.cache/huggingface/modules/diffusers_modules/local"))
-    hub_dir.mkdir(parents=True, exist_ok=True)
-    hub_target = hub_dir / "mv_unet.py"
-    if hub_target.exists():
-        if "HAS_XFORMERS" not in hub_target.read_text():
-            _patch_mv_unet_file(hub_target)
-    else:
-        # Copy our patched version to hub cache
-        src = LGM_REPO / "mvdream" / "mv_unet.py"
-        if src.exists():
-            content = src.read_text()
-            # If not yet patched locally, apply patch now
-            if "HAS_XFORMERS" not in content:
-                # Apply patch to content string
-                content = content.replace(
-                    "# require xformers!\nimport xformers\nimport xformers.ops",
-                    "# xformers (optional)\ntry:\n    import xformers\n    import xformers.ops\n    HAS_XFORMERS = True\nexcept ImportError:\n    HAS_XFORMERS = False"
-                )
-                content = content.replace(
-                    "out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )",
-                    "if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)"
-                )
-                content = content.replace(
-                    "out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )",
-                    "if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)"
-                )
-            hub_target.write_text(content)
-            logger.info(f"✓ Pre-created patched hub cache: {hub_target}")
+    # Patch hub snapshot mv_unet.py (where from_pretrained loads it from)
+    import glob as _glob
+    for _f in _glob.glob(os.path.expanduser(
+        "~/.cache/huggingface/hub/models--ashawkey--imagedream-ipmv-diffusers/"
+        "snapshots/*/unet/mv_unet.py"
+    )):
+        _p = Path(_f)
+        _c = _p.read_text()
+        if "HAS_XFORMERS" not in _c:
+            _c = _c.replace("# require xformers!\nimport xformers\nimport xformers.ops",
+                "# xformers (optional)\ntry:\n    import xformers\n    import xformers.ops\n    HAS_XFORMERS = True\nexcept ImportError:\n    HAS_XFORMERS = False")
+            _c = _c.replace(
+                "out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )",
+                "if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)")
+            _c = _c.replace(
+                "out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )",
+                "if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)")
+            _p.write_text(_c)
+            logger.info(f"✓ Patched hub snapshot: {_p}")
+        break
     
     cmd = [
         python, str(LGM_REPO / "infer.py"),
