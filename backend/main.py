@@ -244,6 +244,43 @@ class GaussianRenderer:
     target.write_text(patched)
     logger.info("✓ Patched LGM gs.py for gsplat")
 
+def patch_lgm_xformers():
+    """Make xformers optional in mv_unet.py. Falls back to PyTorch SDPA."""
+    target = LGM_REPO / "mvdream" / "mv_unet.py"
+    if not target.exists():
+        logger.warning(f"mv_unet.py not found")
+        return
+    
+    content = target.read_text()
+    
+    # Check if already patched
+    if "HAS_XFORMERS" in content:
+        logger.info("→ mv_unet.py already patched for xformers")
+        return
+    
+    # 1. Replace the import
+    old_import = "# require xformers!\nimport xformers\nimport xformers.ops"
+    new_import = '''# xformers (optional)
+try:
+    import xformers
+    import xformers.ops
+    HAS_XFORMERS = True
+except ImportError:
+    HAS_XFORMERS = False'''
+    content = content.replace(old_import, new_import)
+    
+    # 2. Replace xformers attention calls with fallback
+    old_attn = '''out = xformers.ops.memory_efficient_attention(\n            q, k, v, attn_bias=None, op=self.attention_op\n        )'''
+    new_attn = '''if HAS_XFORMERS:\n            out = xformers.ops.memory_efficient_attention(\n                q, k, v, attn_bias=None, op=self.attention_op\n            )\n        else:\n            out = F.scaled_dot_product_attention(q, k, v)\n            out = out.reshape(b * self.heads, -1, self.dim_head)'''
+    content = content.replace(old_attn, new_attn)
+    
+    old_attn2 = '''out_ip = xformers.ops.memory_efficient_attention(\n                q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n            )'''
+    new_attn2 = '''if HAS_XFORMERS:\n                out_ip = xformers.ops.memory_efficient_attention(\n                    q, k_ip, v_ip, attn_bias=None, op=self.attention_op\n                )\n            else:\n                out_ip = F.scaled_dot_product_attention(q, k_ip, v_ip)\n                out_ip = out_ip.reshape(b * self.heads, -1, self.dim_head)'''
+    content = content.replace(old_attn2, new_attn2)
+    
+    target.write_text(content)
+    logger.info("✓ Patched mv_unet.py: xformers is now optional")
+
 def ensure_lgm_weights() -> Path:
     """Скачать/найти веса для LGM. Сначала смотрит в data/ckpts/."""
     local = CKPTS / "model_fp16.safetensors"
@@ -378,6 +415,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 # Patch models for missing CUDA libs
 patch_instantmesh_nvdiffrast()
 patch_lgm_gsplat()
+patch_lgm_xformers()
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND)), name="frontend")
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS)), name="outputs")
