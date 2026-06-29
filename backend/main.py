@@ -81,16 +81,18 @@ def patch_instantmesh_nvdiffrast():
         return
     
     content = target.read_text()
-    old_import = "import nvdiffrast.torch as dr"
-    new_import = (
+    old_block = "import nvdiffrast.torch as dr\nfrom PIL import Image"
+    new_block = (
+        "from PIL import Image\n"
+        "\n"
         "try:\n"
         "    import nvdiffrast.torch as dr\n"
         "except ImportError:\n"
         "    dr = None"
     )
     
-    if old_import in content:
-        content = content.replace(old_import, new_import)
+    if old_block in content:
+        content = content.replace(old_block, new_block)
         target.write_text(content)
         logger.info("✓ Patched mesh_util.py: nvdiffrast import is now optional")
     else:
@@ -372,6 +374,7 @@ def run_lgm(image_path: str, output_dir: str, task_id: str) -> dict:
     
     cmd = [
         python, str(LGM_REPO / "infer.py"),
+        "lrm",
         "--test_path", image_path,
         "--workspace", output_dir,
         "--resume", str(weights),
