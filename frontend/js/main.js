@@ -38,7 +38,7 @@
   };
 
   let meshViewer = null;
-  let splatViewer = null;
+  let splatEditor = null;
 
   // ── Init ───────────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@
 
     // Init viewers
     meshViewer = new MeshViewer('threeContainer');
-    splatViewer = new SplatViewer('splatContainer');
+    splatEditor = new SplatEditor('splatContainer');
   }
 
   // ── File handling ──────────────────────────────────────────────────────
@@ -292,11 +292,11 @@
       meshViewer.loadMesh(url, format);
 
     } else if (state.engine === 'lgm' && result.ply) {
-      // Show splat viewer
+      // Show splat editor
       dom.threeContainer.style.display = 'none';
       dom.splatContainer.style.display = 'block';
 
-      splatViewer.loadPLY(result.ply);
+      splatEditor.loadPLY(result.ply);
 
     } else {
       // Fallback
@@ -322,7 +322,7 @@
     dom.splatContainer.style.display = 'none';
     dom.viewerControls.style.display = 'none';
     meshViewer.clear();
-    splatViewer.clear();
+    splatEditor.clear();
   }
 
   function resetAll() {
