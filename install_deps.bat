@@ -28,15 +28,12 @@ echo.
 
 REM ── Проверка Visual C++ ────────────────────
 echo [2/4] Проверка Visual Studio Build Tools...
-where cl.exe >nul 2>&1
+cl.exe /? >nul 2>&1
 if %errorlevel% neq 0 (
-    echo   ⚠️ cl.exe (C++ компилятор) не найден в PATH
+    echo   ⚠️ C++ компилятор не найден (cl.exe)
     echo.
-    echo   Нужен Visual Studio Build Tools с компонентом "Desktop development with C++"
-    echo   Скачать: https://visualstudio.microsoft.com/visual-cpp-build-tools/
-    echo.
-    echo   После установки перезапусти этот скрипт
-    echo   Или установи вручную из "Developer Command Prompt for VS"
+    echo   Нужен Visual Studio Build Tools — https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    echo   Установи компонент "Desktop development with C++" и перезапусти скрипт.
     echo.
 ) else (
     echo   ✓ C++ компилятор найден
