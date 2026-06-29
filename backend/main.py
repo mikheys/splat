@@ -169,13 +169,13 @@ class GaussianRenderer:
                     render_colors, render_alphas, info = _gsplat_rasterize(
                         means3D, rotations, scales, opacity.squeeze(-1), rgbs,
                         view_matrix, K, W, H,
-                        background_color=bg, scale_modifier=scale_modifier,
+                        backgrounds=bg.unsqueeze(0), scale_modifier=scale_modifier,
                     )
                 else:
                     # fallback using module-level import
                     render_colors, render_alphas, info = _gsplat_rasterize(
                         means3D, rotations, scales, opacity.squeeze(-1), rgbs,
-                        view_matrix, K, W, H, background_color=bg,
+                        view_matrix, K, W, H, backgrounds=bg.unsqueeze(0),
                     )
 
                 rendered_image = render_colors.permute(2, 0, 1).clamp(0, 1)
