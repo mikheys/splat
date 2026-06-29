@@ -167,22 +167,22 @@ class GaussianRenderer:
 
                 if HAS_GSPLAT:
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D.unsqueeze(0).unsqueeze(0), 
-                        rotations.unsqueeze(0).unsqueeze(0), 
-                        scales.unsqueeze(0).unsqueeze(0),
-                        opacity.squeeze(-1).unsqueeze(0).unsqueeze(0), 
-                        rgbs.unsqueeze(0).unsqueeze(0),
+                        means3D.unsqueeze(0), 
+                        rotations.unsqueeze(0), 
+                        scales.unsqueeze(0),
+                        opacity.squeeze(-1).unsqueeze(0), 
+                        rgbs.unsqueeze(0),
                         view_matrix.unsqueeze(0).unsqueeze(0), 
                         K.unsqueeze(0).unsqueeze(0), W, H,
                         backgrounds=bg.unsqueeze(0).unsqueeze(0),
                     )
                 else:
                     render_colors, render_alphas, info = _gsplat_rasterize(
-                        means3D.unsqueeze(0).unsqueeze(0), 
-                        rotations.unsqueeze(0).unsqueeze(0), 
-                        scales.unsqueeze(0).unsqueeze(0),
-                        opacity.squeeze(-1).unsqueeze(0).unsqueeze(0), 
-                        rgbs.unsqueeze(0).unsqueeze(0),
+                        means3D.unsqueeze(0), 
+                        rotations.unsqueeze(0), 
+                        scales.unsqueeze(0),
+                        opacity.squeeze(-1).unsqueeze(0), 
+                        rgbs.unsqueeze(0),
                         view_matrix.unsqueeze(0).unsqueeze(0), 
                         K.unsqueeze(0).unsqueeze(0), W, H,
                         backgrounds=bg.unsqueeze(0).unsqueeze(0),
