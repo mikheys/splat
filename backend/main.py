@@ -111,11 +111,11 @@ def patch_lgm_gsplat():
     
     # Check if already patched with correct API (v2 with _gsplat_rasterize)
     content = target.read_text()
-    if "_gsplat_rasterize" in content:
-        logger.info("→ LGM gs.py already patched for gsplat")
+    if "background_color" in content:
+        logger.info("→ LGM gs.py already patched (v3)")
         return
     
-    logger.info("✓ Patching LGM gs.py for gsplat... (v2 _gsplat_rasterize)")
+    logger.info("✓ Patching LGM gs.py for gsplat... (v3 background_color)")
     # Write the patched version inline
     patched = '''import numpy as np
 
