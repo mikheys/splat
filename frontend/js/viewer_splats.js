@@ -145,10 +145,8 @@ class SplatEditor {
         vec4 worldPos = vec4(aPosition, 1.0);
         vec4 clipPos = uMVP * worldPos;
 
-        // Point size from scale and depth
-        float projScale = uViewport.y / (2.0 * clipPos.w);
-        float size = max(aScale.x, max(aScale.y, aScale.z)) * projScale;
-        gl_PointSize = clamp(size * 2.0, 1.0, 512.0);
+        // Fixed point size for debugging
+        gl_PointSize = 20.0;
 
         gl_Position = clipPos;
         vColor = vec4(aColor, aOpacity);
